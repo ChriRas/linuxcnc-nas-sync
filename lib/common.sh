@@ -22,6 +22,7 @@ load_conf() {
 
 # Never transferred in either direction: NAS, macOS and Windows metadata and temp files.
 # rsync patterns are case-sensitive, hence the bracket expressions.
+# shellcheck disable=SC2034  # used by the scripts that source this file
 COMMON_EXCLUDES=(
     # Synology / NAS
     --exclude='@eaDir/' --exclude='#recycle/' --exclude='#snapshot/' --exclude='*@synoeastream'

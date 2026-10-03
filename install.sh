@@ -51,7 +51,7 @@ fi
 
 # 3. SSH key
 if [ ! -f "$KEY" ]; then
-    mkdir -p -m 700 "$HOME/.ssh"
+    mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
     ssh-keygen -q -t ed25519 -N '' -C "linuxcnc-nas-sync@$(hostname)" -f "$KEY"
     echo "SSH key created. Add this public key on the NAS:"
     cat "$KEY.pub"

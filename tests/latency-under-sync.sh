@@ -64,6 +64,7 @@ start_load() {
 stop_load() { systemctl --user stop "$UNIT"; sleep 2; }
 
 LIMITS=(-p Nice=19 -p CPUSchedulingPolicy=idle -p IOSchedulingClass=idle -p CPUAffinity="$affinity")
+# shellcheck source=/dev/null
 bw=$(. "$CONF"; echo "${BWLIMIT:-0}")
 
 echo "worst deviation from the thread period, $DUR s per phase ($(uname -r))"

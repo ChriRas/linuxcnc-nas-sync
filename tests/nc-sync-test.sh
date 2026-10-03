@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2034  # variables are used inside the eval'd test conditions
 # Test for bin/nc-sync against a local fake NAS. Needs neither a NAS nor LinuxCNC.
 set -uo pipefail
 HERE=$(dirname "$(readlink -f "$0")")

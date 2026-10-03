@@ -13,6 +13,7 @@ set -euo pipefail
 . "$(dirname "$(readlink -f "$0")")/../lib/common.sh"
 
 FORCE=0
+# shellcheck disable=SC2034  # FORCE is read by wait_idle_or_exit in lib/common.sh
 while getopts f opt; do
     case $opt in
         f) FORCE=1 ;;
