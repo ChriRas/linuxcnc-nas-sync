@@ -1,0 +1,21 @@
+# Example configuration for linuxcnc-nas-sync.
+# Copy to ~/.config/linuxcnc-nas-sync/nas-sync.conf and adjust.
+# No passwords: access via SSH key only.
+
+# NAS
+NAS_HOST=nas.example.lan
+NAS_USER=cnc-sync
+SSH_KEY=$HOME/.ssh/linuxcnc-nas-sync
+
+# Network interface of the real-time hardware (e.g. Mesa Ethernet card).
+# Runs abort if the route to the NAS would use it. Empty = no check.
+FORBIDDEN_IF=
+
+# Bandwidth limit in KiB/s (0 = unlimited) and max duration of one run in seconds
+BWLIMIT=2000
+RUN_TIMEOUT=300
+
+# NC sync: NAS -> machine (Synology: absolute paths below /volume1)
+NC_SOURCE=/volume1/CNC/nc_programs
+NC_TARGET=$HOME/linuxcnc/nc_files
+NC_EXTENSIONS="ngc nc tap"

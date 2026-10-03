@@ -1,0 +1,52 @@
+#!/bin/bash
+# Fetch NC programs from the NAS into NC_TARGET, only while LinuxCNC is not running a program.
+# One-way NAS -> machine, only the extensions in NC_EXTENSIONS; files deleted on the NAS
+# are deleted locally as well. Files are written to a temp name and then renamed.
+#
+# Options: -n  dry run (show changes, write nothing)
+#          -f  skip the LinuxCNC state check (tests only)
+set -euo pipefail
+. "$(dirname "$(readlink -f "$0")")/../lib/common.sh"
+
+DRY=() FORCE=0
+while getopts nf opt; do
+    case $opt in
+        n) DRY=(--dry-run) ;;
+        f) FORCE=1 ;;
+        *) exit 2 ;;
+    esac
+done
+
+load_conf
+: "${NC_SOURCE:?NC_SOURCE missing in $CONF}"
+NC_TARGET=${NC_TARGET:-$HOME/linuxcnc/nc_files}
+NC_EXTENSIONS=${NC_EXTENSIONS:-ngc nc tap}
+
+take_lock nc-sync || exit 0
+
+if [ "$FORCE" = 0 ]; then
+    rc=0
+    ${IDLE_CHECK:-"$LIB_DIR/lcnc-idle.py"} >/dev/null 2>&1 || rc=$?
+    # 1 = program running, 2 = state unknown: skip silently, try again next run
+    [ "$rc" = 0 ] || exit 0
+fi
+
+check_route
+
+# Filter: drop Synology/macOS metadata, descend into all directories, keep only
+# NC extensions (case-insensitive), drop everything else.
+FILTER=(--exclude='@eaDir/' --exclude='#recycle/' --exclude='.*' --include='*/')
+for ext in $NC_EXTENSIONS; do
+    pat=
+    for ((i = 0; i < ${#ext}; i++)); do
+        c=${ext:i:1}
+        pat+="[${c,,}${c^^}]"
+    done
+    FILTER+=(--include="*.$pat")
+done
+FILTER+=(--exclude='*')
+
+mkdir -p "$NC_TARGET"
+rsync_low -rt --delete --delete-delay --delay-updates --prune-empty-dirs \
+    --chmod=D755,F644 --out-format='%i %n' "${DRY[@]}" \
+    "${FILTER[@]}" "$(remote_path "${NC_SOURCE%/}/")" "${NC_TARGET%/}/"
