@@ -15,7 +15,10 @@ FORBIDDEN_IF=
 BWLIMIT=2000
 RUN_TIMEOUT=300
 
-# NC sync: NAS -> machine (Synology: absolute paths below /volume1)
+# Paths as seen by the server. Synology: absolute below /volume1.
+# rrsync forced command: relative to its directory with a leading slash (e.g. /nc).
+
+# NC sync: NAS -> machine
 NC_SOURCE=/volume1/CNC/nc_programs
 NC_TARGET=$HOME/linuxcnc/nc_files
 NC_EXTENSIONS="ngc nc tap"

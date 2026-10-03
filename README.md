@@ -7,7 +7,7 @@ Keeps the NC programs on a LinuxCNC machine in sync with a NAS and backs up the 
 - No permanent network mount. Everything runs as `rsync` over SSH with a dedicated key.
 - Built for real-time kernels: low CPU and I/O priority, kept away from the CPU that runs the LinuxCNC real-time thread.
 
-Developed and tested with LinuxCNC 2.9.10 (uspace, PREEMPT_RT) on Debian 13 and a Synology NAS running DSM 7.3.
+Works with a Synology NAS or any other server that offers rsync over SSH (see [Other rsync servers](#other-rsync-servers)). Developed and tested with LinuxCNC 2.9.10 (uspace, PREEMPT_RT) on Debian 13, a Synology NAS running DSM 7.3 and a plain OpenSSH server with `rrsync`.
 
 ## How it works
 
@@ -19,7 +19,7 @@ Developed and tested with LinuxCNC 2.9.10 (uspace, PREEMPT_RT) on Debian 13 and 
    - state unknown (e.g. LinuxCNC is starting up) → skip
 2. `rsync` copies files from `NC_SOURCE` on the NAS to `NC_TARGET` (default `~/linuxcnc/nc_files`):
    - only files with the extensions in `NC_EXTENSIONS` (case-insensitive), including subdirectories
-   - Synology and macOS metadata (`@eaDir`, `#recycle`, dot files) is ignored
+   - metadata and temp files are ignored (see [Excluded files](#excluded-files)), as are all dot files
    - files deleted on the NAS are deleted on the machine
    - every file is written under a temporary name and then renamed, so LinuxCNC never sees a half-written file. A file that is loaded in LinuxCNC is replaced as well; reload it to get the new version.
 
@@ -31,8 +31,21 @@ Developed and tested with LinuxCNC 2.9.10 (uspace, PREEMPT_RT) on Debian 13 and 
 - A new snapshot is only created if something changed since the last one. Unchanged files are hard links to the previous snapshot (`rsync --link-dest`), so a snapshot costs only the space of the changed files.
 - A snapshot counts as complete only once its marker file `YYYY-MM-DD_HHMMSS.complete` exists. Incomplete snapshots (aborted runs) are deleted on the next run.
 - Snapshots older than `BACKUP_KEEP_DAYS` are deleted, but the newest `BACKUP_KEEP_MIN` snapshots are always kept.
-- Skipped: `__pycache__`, `*.pyc`, `*.pickle*`, `*-shm`, `*.log`. Included on purpose: `linuxcnc.var` (offsets), tool tables, `tool_table.db`.
+- Skipped: the [excluded files](#excluded-files) plus `__pycache__`, `*.pyc`, `*.pickle*`, `*-shm`, `*.log`. Regular dot files (e.g. `.halshow_watchlist_backup`) are kept. Included on purpose: `linuxcnc.var` (offsets), tool tables, `tool_table.db`.
 - Needs only rsync on the NAS, no shell. This matters on Synology, where non-admin users get no SSH shell.
+
+### Excluded files
+
+Never transferred in either direction (defined in `lib/common.sh`, `COMMON_EXCLUDES`):
+
+| Source | Patterns |
+|---|---|
+| Synology / NAS | `@eaDir/`, `#recycle/`, `#snapshot/`, `*@synoeastream`, `.smbdelete*` |
+| macOS | `.DS_Store`, `._*`, `.Spotlight-V100/`, `.Trashes/` |
+| Windows | `$RECYCLE.BIN/`, `System Volume Information/`, `Thumbs.db`, `ehthumbs*.db`, `desktop.ini`, `~*` (Office owner files `~$name`, `~WRL0001.tmp`), `*.tmp`, `*:Zone.Identifier` |
+| Downloads, editors | `*.crdownload`, `*.part`, `*.partial`, `*~`, `.~lock.*#` (LibreOffice) |
+
+`nc-sync` only transfers NC extensions anyway. The list matters for files that would otherwise slip through, e.g. `~$part.ngc` or `$RECYCLE.BIN/…/$R1.ngc`.
 
 ### Scheduling
 
@@ -50,7 +63,7 @@ Both services run with `Nice=19`, `CPUSchedulingPolicy=idle`, `IOSchedulingClass
 
 - LinuxCNC 2.9 (uspace) with the `linuxcnc` Python module
 - `rsync`, `openssh-client`, `python3` (installed by `install.sh` if missing)
-- A NAS reachable via SSH with rsync
+- A server reachable via SSH that can run rsync: a Synology NAS ([setup](#1-nas-synology-dsm-7)) or any other server ([requirements](#other-rsync-servers))
 
 ## Setup
 
@@ -64,6 +77,50 @@ Both services run with `Nice=19`, `CPUSchedulingPolicy=idle`, `IOSchedulingClass
 4. **Control Panel → File Services → rsync:** enable the rsync service (rsync over SSH).
 
 Paths on Synology are absolute, e.g. `/volume1/CNC/nc_programs`.
+
+### Other rsync servers
+
+Any server works (Linux box, other NAS brands, TrueNAS, a Raspberry Pi with a USB disk) if it meets these requirements:
+
+| Requirement | Why |
+|---|---|
+| SSH server reachable from the machine, key authentication enabled | All transfers run as `rsync` over SSH with `BatchMode=yes`; password prompts are impossible. |
+| `rsync` installed on the server (3.1 or newer recommended) | The client starts `rsync --server` on the server via SSH. An rsync daemon (`rsync://`, port 873) is **not** used. |
+| A user whose login shell can run commands (not `/usr/sbin/nologin`, `/bin/false`), or a forced command such as `rrsync` | sshd starts the remote rsync through the user's shell or the forced command. |
+| Read access to `NC_SOURCE` | NC sync only reads from the server. |
+| Write access to `BACKUP_TARGET`, including deleting | Snapshots are created there and old ones deleted. |
+| Filesystem of `BACKUP_TARGET` supports hard links (ext4, XFS, Btrfs, ZFS; **not** FAT32/exFAT) | Unchanged files are hard links to the previous snapshot. Without hard link support the snapshots do not work as intended. |
+| Host key in `~/.ssh/known_hosts` on the machine | `BatchMode` refuses unknown hosts. Add it once with `ssh-keyscan` and compare the fingerprint. |
+| Route to the server not via the real-time NIC | Set `FORBIDDEN_IF`; runs abort otherwise. |
+
+No shell commands besides rsync are executed on the server: listing, transferring and deleting old snapshots are all done with rsync. Paths in the config are absolute server paths, or relative to the user's home directory.
+
+Non-standard port or other SSH options: add a host entry to `~/.ssh/config` on the machine and use its name as `NAS_HOST`:
+
+```
+Host backupserver
+    HostName 192.0.2.10
+    Port 2222
+```
+
+#### Recommended: restrict the key with rrsync
+
+`rrsync` ships with rsync (Debian: `/usr/bin/rrsync`) and limits an SSH key to rsync inside one directory. Put the NC programs and the backups below a common directory, e.g. `/srv/cnc/nc` and `/srv/cnc/backup`, and prefix the key in the server user's `~/.ssh/authorized_keys`:
+
+```
+command="rrsync -no-lock /srv/cnc",restrict ssh-ed25519 AAAA... linuxcnc-nas-sync@machine
+```
+
+Then write the paths in `nas-sync.conf` **relative to that directory, with a leading slash**:
+
+```sh
+NC_SOURCE=/nc
+BACKUP_TARGET=/backup
+```
+
+- `-no-lock` is required: without it rrsync allows only one rsync per user at a time, so a backup and a sync starting together would fail.
+- Do not use `-absolute`: it applies only to transfer paths, not to `--link-dest`, so the hard-link step of the backup would point to the wrong place.
+- `-ro` (read-only) does not work for a shared key, because the backup needs to write.
 
 ### 2. Machine
 

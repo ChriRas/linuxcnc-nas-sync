@@ -65,8 +65,14 @@ fi
 
 if [ "$changed" = 1 ]; then
     stamp=$(date +%Y-%m-%d_%H%M%S)
+    # Absolute --link-dest where possible: rrsync rejects ".." in option paths.
     link=()
-    [ -z "$latest" ] || link=(--link-dest="../$latest")
+    if [ -n "$latest" ]; then
+        case $TARGET in
+            /*) link=(--link-dest="$TARGET/$latest") ;;
+            *)  link=(--link-dest="../$latest") ;;
+        esac
+    fi
     rsync_low "${OPTS[@]}" "${FILTER[@]}" "${link[@]}" \
         "${BACKUP_SOURCE%/}/" "$(remote_path "$TARGET/$stamp/")"
     printf '%s %s %s\n' "$(hostname)" "$BACKUP_SOURCE" "$(date -Is)" > "$EMPTY/$stamp.complete"
