@@ -1,0 +1,13 @@
+[Unit]
+Description=LinuxCNC: back up config to NAS
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=@PREFIX@/bin/config-backup
+Nice=19
+CPUSchedulingPolicy=idle
+IOSchedulingClass=idle
+@AFFINITY@
+LogLevelMax=notice
+SyslogLevel=notice

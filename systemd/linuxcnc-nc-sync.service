@@ -1,0 +1,15 @@
+[Unit]
+Description=LinuxCNC: fetch NC programs from NAS
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=@PREFIX@/bin/nc-sync
+# Low priority, away from the real-time CPU (install.sh sets CPUAffinity)
+Nice=19
+CPUSchedulingPolicy=idle
+IOSchedulingClass=idle
+@AFFINITY@
+# Log only changes and errors, not every run
+LogLevelMax=notice
+SyslogLevel=notice

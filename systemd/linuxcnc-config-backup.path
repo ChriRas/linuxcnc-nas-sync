@@ -1,0 +1,12 @@
+[Unit]
+Description=LinuxCNC: config backup after LinuxCNC start/exit
+
+# LinuxCNC creates this file on startup and removes it on exit.
+# On startup the state is unknown and the backup skips the run;
+# after exit the backup runs.
+[Path]
+PathChanged=/tmp/linuxcnc.lock
+Unit=linuxcnc-config-backup.service
+
+[Install]
+WantedBy=default.target
