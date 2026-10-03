@@ -28,14 +28,21 @@ echo x > "$SRC/machine/__pycache__/a.pyc"
 echo x > "$SRC/machine/.vcp_persistent_data.pickle"
 echo x > "$SRC/machine/tool_table.db-shm"
 echo x > "$SRC/machine/sim.log"
+echo x > "$SRC/machine/.halshow_watchlist"
+echo x > "$SRC/machine/Thumbs.db"
+echo x > "$SRC/machine/desktop.ini"
+echo x > "$SRC/machine/~\$notes.txt"
+echo x > "$SRC/machine/edit.TMP"
+echo x > "$SRC/machine/.DS_Store"
 
 backup
 s1=$(stands | tail -1)
 ok "first snapshot created and marked" '[ "$(count)" = 1 ] && [ -f "$DST/$s1.complete" ]'
 ok "files backed up, executable bit kept" \
    '[ -f "$DST/$s1/machine/machine.ini" ] && [ -x "$DST/$s1/machine/tool_db.sh" ]'
-ok "caches, pickle, -shm, logs skipped" \
-   '[ "$(find "$DST/$s1" -type f | wc -l)" = 3 ]'
+ok "caches, pickle, -shm, logs, macOS/Windows metadata and temp files skipped" \
+   '[ "$(find "$DST/$s1" -type f | wc -l)" = 4 ]'
+ok "regular dot files kept" '[ -f "$DST/$s1/machine/.halshow_watchlist" ]'
 
 sleep 1; backup
 ok "no new snapshot without changes" '[ "$(count)" = 1 ]'

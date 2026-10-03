@@ -33,9 +33,9 @@ fi
 
 check_route
 
-# Filter: drop Synology/macOS metadata, descend into all directories, keep only
-# NC extensions (case-insensitive), drop everything else.
-FILTER=(--exclude='@eaDir/' --exclude='#recycle/' --exclude='.*' --include='*/')
+# Filter: drop metadata and temp files and all dot files, descend into all
+# directories, keep only NC extensions (case-insensitive), drop everything else.
+FILTER=("${COMMON_EXCLUDES[@]}" --exclude='.*' --include='*/')
 for ext in $NC_EXTENSIONS; do
     pat=
     for ((i = 0; i < ${#ext}; i++)); do

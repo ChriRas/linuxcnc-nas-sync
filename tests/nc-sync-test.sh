@@ -17,7 +17,8 @@ fails=0
 ok() { if eval "$2"; then echo "OK   $1"; else echo "FAIL $1"; fails=$((fails + 1)); fi; }
 sync() { "$HERE/../bin/nc-sync" >/dev/null; }
 
-mkdir -p "$SRC/part a/sub" "$SRC/@eaDir/x" "$SRC/only_bak" "$SRC/#recycle"
+mkdir -p "$SRC/part a/sub" "$SRC/@eaDir/x" "$SRC/only_bak" "$SRC/#recycle" \
+    "$SRC/\$RECYCLE.BIN/S-1-5-21" "$SRC/System Volume Information"
 echo "G0 X1" > "$SRC/one.ngc"
 echo "G0 X2" > "$SRC/part a/sub/two.NGC"
 echo "G0 X3" > "$SRC/three.Tap"
@@ -30,13 +31,22 @@ echo x > "$SRC/@eaDir/x/one.ngc"
 echo x > "$SRC/#recycle/gone.ngc"
 echo x > "$SRC/.DS_Store"
 echo x > "$SRC/._one.ngc"
+echo x > "$SRC/\$RECYCLE.BIN/S-1-5-21/\$R1.ngc"
+echo x > "$SRC/System Volume Information/x.ngc"
+echo x > "$SRC/~\$one.ngc"
+echo x > "$SRC/~WRL0001.ngc"
+echo x > "$SRC/Thumbs.db"
+echo x > "$SRC/desktop.ini"
+echo x > "$SRC/one.ngc:Zone.Identifier"
+echo x > "$SRC/download.ngc.crdownload"
 
 sync
 ok "NC files fetched (subdirectories, spaces, upper case)" \
    '[ -f "$DST/one.ngc" ] && [ -f "$DST/part a/sub/two.NGC" ] && [ -f "$DST/three.Tap" ] && [ -f "$DST/four.nc" ]'
-ok "other extensions and Synology/macOS metadata skipped" \
+ok "other extensions, NAS/macOS/Windows metadata and temp files skipped" \
    '[ "$(find "$DST" -type f | wc -l)" = 4 ]'
-ok "empty directories skipped" '[ ! -e "$DST/only_bak" ] && [ ! -e "$DST/@eaDir" ]'
+ok "empty and excluded directories skipped" \
+   '[ ! -e "$DST/only_bak" ] && [ ! -e "$DST/@eaDir" ] && [ ! -e "$DST/\$RECYCLE.BIN" ]'
 
 ino=$(stat -c %i "$DST/one.ngc")
 echo "G0 X1 Y1" > "$SRC/one.ngc"

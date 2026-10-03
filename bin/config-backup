@@ -36,9 +36,9 @@ fi
 check_route
 [ -d "$BACKUP_SOURCE" ] || die "source missing: $BACKUP_SOURCE"
 
-# Do not back up runtime and cache files
-FILTER=(--exclude='__pycache__/' --exclude='*.pyc' --exclude='*.pickle*'
-        --exclude='*-shm' --exclude='*.log' --exclude='@eaDir/')
+# Do not back up metadata, temp, runtime and cache files
+FILTER=("${COMMON_EXCLUDES[@]}" --exclude='__pycache__/' --exclude='*.pyc'
+        --exclude='*.pickle*' --exclude='*-shm' --exclude='*.log')
 OPTS=(-rlptD --delete --chmod=u+rw)
 
 EMPTY=$(mktemp -d)
