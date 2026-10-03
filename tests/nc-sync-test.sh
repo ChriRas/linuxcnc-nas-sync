@@ -74,5 +74,19 @@ exec 8>&-
 sync
 ok "sync again afterwards" '[ -f "$DST/five.ngc" ]'
 
+echo "G0 X6" > "$SRC/six.ngc"
+ok "failing state check is an error, not a silent skip" \
+   '! IDLE_CHECK=/nonexistent "$HERE/../bin/nc-sync" >/dev/null 2>&1 && [ ! -e "$DST/six.ngc" ]'
+
+sed -i 's/^NC_EXTENSIONS=.*/NC_EXTENSIONS=".ngc,.NC"/' "$NAS_SYNC_CONF"
+echo "G0 X7" > "$SRC/seven.nc"
+echo "G0 X8" > "$SRC/eight.tap"
+sync
+ok "extensions with dots and commas accepted" \
+   '[ -f "$DST/six.ngc" ] && [ -f "$DST/seven.nc" ] && [ ! -e "$DST/eight.tap" ]'
+
+echo "NC_TARGET=$HOME" >> "$NAS_SYNC_CONF"
+ok "home directory refused as NC_TARGET" '! "$HERE/../bin/nc-sync" -n >/dev/null 2>&1'
+
 [ "$fails" = 0 ] && echo "All tests passed" || echo "$fails test(s) failed"
 exit $((fails > 0))

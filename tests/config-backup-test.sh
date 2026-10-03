@@ -20,7 +20,7 @@ backup() { "$HERE/../bin/config-backup" >/dev/null; }
 stands() { find "$DST" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort; }
 count() { stands | wc -l; }
 
-mkdir -p "$SRC/machine/__pycache__" "$DST"
+mkdir -p "$SRC/machine/__pycache__"   # $DST is created by the first run
 echo "[EMC]" > "$SRC/machine/machine.ini"
 printf '#!/bin/sh\n' > "$SRC/machine/tool_db.sh"; chmod 755 "$SRC/machine/tool_db.sh"
 echo 5221 > "$SRC/machine/linuxcnc.var"
@@ -37,6 +37,7 @@ echo x > "$SRC/machine/.DS_Store"
 
 backup
 s1=$(stands | tail -1)
+ok "missing BACKUP_TARGET created" '[ -d "$DST" ]'
 ok "first snapshot created and marked" '[ "$(count)" = 1 ] && [ -f "$DST/$s1.complete" ]'
 ok "files backed up, executable bit kept" \
    '[ -f "$DST/$s1/machine/machine.ini" ] && [ -x "$DST/$s1/machine/tool_db.sh" ]'
@@ -83,6 +84,12 @@ ok "without changes: the newest 3 old snapshots are kept" '[ "$(count)" = 3 ]'
 echo new2 > "$SRC/machine/new.txt"
 IDLE_CHECK=false backup
 ok "no backup while LinuxCNC is busy" '[ "$(count)" = 3 ]'
+
+ok "failing state check is an error, not a silent skip" \
+   '! IDLE_CHECK=/nonexistent "$HERE/../bin/config-backup" >/dev/null 2>&1'
+
+echo "BACKUP_KEEP_MIN=0" >> "$NAS_SYNC_CONF"
+ok "BACKUP_KEEP_MIN=0 refused" '! "$HERE/../bin/config-backup" >/dev/null 2>&1 && [ "$(count)" = 3 ]'
 
 [ "$fails" = 0 ] && echo "All tests passed" || echo "$fails test(s) failed"
 exit $((fails > 0))

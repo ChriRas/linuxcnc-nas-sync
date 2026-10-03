@@ -11,7 +11,8 @@ SSH_KEY=$HOME/.ssh/linuxcnc-nas-sync
 # Runs abort if the route to the NAS would use it. Empty = no check.
 FORBIDDEN_IF=
 
-# Bandwidth limit in KiB/s (0 = unlimited) and max duration of one run in seconds
+# Bandwidth limit in KiB/s (2000 = about 2 MB/s, 0 = unlimited) and timeout
+# in seconds for each rsync call
 BWLIMIT=2000
 RUN_TIMEOUT=300
 

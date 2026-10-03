@@ -4,6 +4,8 @@
 #
 #   ./install.sh       install / update (idempotent)
 #   ./install.sh -u    remove the units (config and SSH key are kept)
+#
+# The timers are only enabled once the config no longer contains the example host.
 set -euo pipefail
 PREFIX=$(dirname "$(readlink -f "$0")")
 CONF_DIR=${XDG_CONFIG_HOME:-$HOME/.config}/linuxcnc-nas-sync
@@ -13,6 +15,10 @@ UNITS=(linuxcnc-nc-sync.service linuxcnc-nc-sync.timer
        linuxcnc-config-backup.service linuxcnc-config-backup.timer linuxcnc-config-backup.path)
 ENABLE=(linuxcnc-nc-sync.timer linuxcnc-config-backup.timer linuxcnc-config-backup.path)
 
+case ${1:-} in
+    "" | -u) ;;
+    *) echo "usage: $0 [-u]" >&2; exit 2 ;;
+esac
 [ "$(id -u)" != 0 ] || { echo "Run as a regular user, not as root." >&2; exit 1; }
 
 if [ "${1:-}" = "-u" ]; then
@@ -61,6 +67,20 @@ for u in "${UNITS[@]}"; do
     sed -e "s|@PREFIX@|$PREFIX|g" -e "s|@AFFINITY@|$affinity|" "$PREFIX/systemd/$u" > "$UNIT_DIR/$u"
 done
 systemctl --user daemon-reload
+
+# Do not start syncing with the unedited example config: nc-sync deletes files
+# in NC_TARGET that are missing on the server.
+if grep -q '^NAS_HOST=nas\.example\.lan' "$CONF_DIR/nas-sync.conf"; then
+    cat <<EOF
+
+Installed, but the timers are NOT enabled yet. Next steps:
+  1. Add the public key above (or in $KEY.pub) on the NAS.
+  2. Edit $CONF_DIR/nas-sync.conf
+  3. Test: $PREFIX/bin/nc-sync -n
+  4. Run ./install.sh again to enable the timers.
+EOF
+    exit 0
+fi
 systemctl --user enable --now "${ENABLE[@]}"
 
 # 5. Lingering: units run without a logged-in user (from boot)

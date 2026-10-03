@@ -11,9 +11,11 @@ The reason is written to stderr.
 """
 import os
 import sys
+import time
 
 FREE, BUSY, UNKNOWN = 0, 1, 2
 LOCKFILE = "/tmp/linuxcnc.lock"
+STALE_AFTER = 300  # seconds; an older lock without linuxcncsvr is a crash leftover
 
 
 def lcnc_running():
@@ -32,10 +34,18 @@ def lcnc_running():
 
 def main():
     if not lcnc_running():
-        if os.path.exists(LOCKFILE):
-            # Startup in progress or leftovers of a crash: do not interfere.
-            print("lock file present but no linuxcncsvr", file=sys.stderr)
+        try:
+            age = time.time() - os.path.getmtime(LOCKFILE)
+        except OSError:
+            age = None
+        if age is not None and age < STALE_AFTER:
+            # LinuxCNC is starting up: do not interfere.
+            print("lock file present but no linuxcncsvr (starting up?)", file=sys.stderr)
             return UNKNOWN
+        if age is not None:
+            print(f"stale lock file ({age:.0f} s old), LinuxCNC not running", file=sys.stderr)
+            print("")
+            return FREE
         print("LinuxCNC not running", file=sys.stderr)
         print("")
         return FREE

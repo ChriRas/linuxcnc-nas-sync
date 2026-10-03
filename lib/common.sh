@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Shared functions for nc-sync and config-backup. Loaded via "source".
 
 LIB_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
@@ -44,6 +45,20 @@ remote_path() {
     if [ "$NAS_HOST" = "-" ]; then echo "$1"; else echo "$REMOTE:$1"; fi
 }
 
+# Exit quietly while LinuxCNC is busy (1) or its state is unknown (2); the next run
+# tries again. Any other failure of the check is an error, so it shows up in the journal.
+# Skipped with FORCE=1 (option -f). IDLE_CHECK replaces the check in tests.
+wait_idle_or_exit() {
+    [ "${FORCE:-0}" = 0 ] || return 0
+    local rc=0
+    "${IDLE_CHECK:-$LIB_DIR/lcnc-idle.py}" >/dev/null 2>&1 || rc=$?
+    case $rc in
+        0) ;;
+        1 | 2) exit 0 ;;
+        *) die "LinuxCNC state check failed (exit $rc): ${IDLE_CHECK:-$LIB_DIR/lcnc-idle.py}" ;;
+    esac
+}
+
 # Prevent concurrent runs. Returns 1 if another run is active.
 take_lock() {
     local dir=${XDG_RUNTIME_DIR:-/tmp}
@@ -54,13 +69,17 @@ take_lock() {
 # Refuse to send traffic over the interface of the real-time hardware (e.g. Mesa card).
 check_route() {
     [ -n "${FORBIDDEN_IF:-}" ] && [ "$NAS_HOST" != "-" ] || return 0
-    local dev
-    dev=$(ip route get "$NAS_HOST" 2>/dev/null | sed -n 's/.* dev \([^ ]*\).*/\1/p' | head -1)
-    [ -n "$dev" ] || die "no route to $NAS_HOST"
+    local host addr dev
+    # NAS_HOST may be a DNS name or an alias from ~/.ssh/config: resolve it first.
+    host=$(ssh -G "$NAS_HOST" 2>/dev/null | awk '$1 == "hostname" {print $2; exit}')
+    addr=$(getent ahosts "${host:-$NAS_HOST}" | awk '{print $1; exit}')
+    [ -n "$addr" ] || die "cannot resolve $NAS_HOST"
+    dev=$(ip route get "$addr" 2>/dev/null | sed -n 's/.* dev \([^ ]*\).*/\1/p' | head -1)
+    [ -n "$dev" ] || die "no route to $NAS_HOST ($addr)"
     [ "$dev" != "$FORBIDDEN_IF" ] || die "route to $NAS_HOST goes via $FORBIDDEN_IF, aborting"
 }
 
-# rsync with low priority and an overall timeout.
+# rsync with low priority and a timeout (RUN_TIMEOUT applies to each rsync call).
 rsync_low() {
     nice -n 19 ionice -c3 timeout "${RUN_TIMEOUT:-300}" \
         rsync -e "$RSYNC_SSH" --timeout=60 --bwlimit="$BWLIMIT" "$@"

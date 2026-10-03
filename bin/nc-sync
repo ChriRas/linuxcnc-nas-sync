@@ -6,6 +6,7 @@
 # Options: -n  dry run (show changes, write nothing)
 #          -f  skip the LinuxCNC state check (tests only)
 set -euo pipefail
+# shellcheck source=../lib/common.sh
 . "$(dirname "$(readlink -f "$0")")/../lib/common.sh"
 
 DRY=() FORCE=0
@@ -22,21 +23,22 @@ load_conf
 NC_TARGET=${NC_TARGET:-$HOME/linuxcnc/nc_files}
 NC_EXTENSIONS=${NC_EXTENSIONS:-ngc nc tap}
 
-take_lock nc-sync || exit 0
+# --delete mirrors the NAS into NC_TARGET: refuse targets where that would be fatal.
+target=$(readlink -m "$NC_TARGET")
+case $target in
+    / | "$(readlink -m "$HOME")") die "NC_TARGET must be a dedicated directory, not $target" ;;
+esac
 
-if [ "$FORCE" = 0 ]; then
-    rc=0
-    ${IDLE_CHECK:-"$LIB_DIR/lcnc-idle.py"} >/dev/null 2>&1 || rc=$?
-    # 1 = program running, 2 = state unknown: skip silently, try again next run
-    [ "$rc" = 0 ] || exit 0
-fi
+take_lock nc-sync || exit 0
+wait_idle_or_exit
 
 check_route
 
 # Filter: drop metadata and temp files and all dot files, descend into all
 # directories, keep only NC extensions (case-insensitive), drop everything else.
 FILTER=("${COMMON_EXCLUDES[@]}" --exclude='.*' --include='*/')
-for ext in $NC_EXTENSIONS; do
+for ext in ${NC_EXTENSIONS//,/ }; do
+    ext=${ext#.}
     pat=
     for ((i = 0; i < ${#ext}; i++)); do
         c=${ext:i:1}
