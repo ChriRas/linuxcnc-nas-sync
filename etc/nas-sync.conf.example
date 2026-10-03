@@ -19,3 +19,9 @@ RUN_TIMEOUT=300
 NC_SOURCE=/volume1/CNC/nc_programs
 NC_TARGET=$HOME/linuxcnc/nc_files
 NC_EXTENSIONS="ngc nc tap"
+
+# Config backup: machine -> NAS, one snapshot per change
+BACKUP_SOURCE=$HOME/linuxcnc/configs
+BACKUP_TARGET=/volume1/Backup_LinuxCNC
+BACKUP_KEEP_DAYS=14    # snapshots older than this are deleted ...
+BACKUP_KEEP_MIN=10     # ... but the newest this many are always kept
