@@ -1,5 +1,6 @@
 [Unit]
 Description=LinuxCNC: fetch NC programs from NAS
+Documentation=https://github.com/ChriRas/linuxcnc-nas-sync
 After=network-online.target
 
 [Service]
