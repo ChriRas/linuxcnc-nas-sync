@@ -1,0 +1,12 @@
+# Local configuration (contains host, user, paths)
+etc/nas-sync.conf
+*.local
+# Keys and credentials
+*.key
+id_*
+*.credentials
+# Runtime
+__pycache__/
+*.pyc
+*.log
+tests/tmp/
