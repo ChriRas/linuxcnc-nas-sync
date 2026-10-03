@@ -1,14 +1,18 @@
 # Example configuration for linuxcnc-nas-sync.
-# Copy to ~/.config/linuxcnc-nas-sync/nas-sync.conf and adjust.
+# install.sh copies it to ~/.config/linuxcnc-nas-sync/nas-sync.conf; edit that copy.
+# This is a shell file: no spaces around "=", quotes around values with spaces.
 # No passwords: access via SSH key only.
 
-# NAS
+# NAS: IP address recommended (names often don't resolve on the machine),
+# or a host alias from ~/.ssh/config. The timers stay disabled while this
+# is still nas.example.lan.
 NAS_HOST=nas.example.lan
 NAS_USER=cnc-sync
 SSH_KEY=$HOME/.ssh/linuxcnc-nas-sync
 
-# Network interface of the real-time hardware (e.g. Mesa Ethernet card).
-# Runs abort if the route to the NAS would use it. Empty = no check.
+# Network interface of the real-time hardware (e.g. Mesa Ethernet card), find it
+# with "ip -br addr". Runs abort if the route to the NAS would use it.
+# Empty = no check (machines without an Ethernet Mesa card).
 FORBIDDEN_IF=
 
 # Bandwidth limit in KiB/s (2000 = about 2 MB/s, 0 = unlimited) and timeout
@@ -22,6 +26,7 @@ RUN_TIMEOUT=300
 # NC sync: NAS -> machine
 NC_SOURCE=/volume1/CNC/nc_programs
 NC_TARGET=$HOME/linuxcnc/nc_files
+# NC_TARGET mirrors NC_SOURCE: NC files missing on the NAS are deleted here.
 NC_EXTENSIONS="ngc nc tap"
 
 # Config backup: machine -> NAS, one snapshot per change
