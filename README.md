@@ -1,5 +1,7 @@
 # linuxcnc-nas-sync
 
+[![CI](https://github.com/ChriRas/linuxcnc-nas-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/ChriRas/linuxcnc-nas-sync/actions/workflows/ci.yml)
+
 Keeps the NC programs on a LinuxCNC machine in sync with a NAS and backs up the LinuxCNC configuration to the NAS.
 
 - **nc-sync** (NAS → machine): fetches NC programs every minute, but only while LinuxCNC is not running a program.
